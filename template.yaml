@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: template for wordpress example using cloudformation
+
+Parameters:
+  AvailabilityZone:
+    Type: String
+    Default: ap-north-east-1
+
+  ProjectName:
+    Type: String
+    Default: wordpress-example-cloudformation
+
+Resources:
+# ------------------------------------------------------------#
+#  VPC
+# ------------------------------------------------------------# 
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: True
+      EnableDnsSupport: True
+      InstanceTenancy: default
+      Tags: 
+        - Key: Name
+          Value: !Sub vpc-${ProjectName}
+
+# ------------------------------------------------------------#
+#  Internet Gateway
+# ------------------------------------------------------------# 
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: !Sub igw-${ProjectName}
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+# ------------------------------------------------------------#
+#  Subnet
+# ------------------------------------------------------------# 
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: !Ref AvailabilityZone
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: False
+      VpcId: !Ref VPC
+      Tags: 
+        - Key: Name
+          Value: !Sub public-subnet-${ProjectName}
+
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      AvailabilityZone: !Ref AvailabilityZone
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: False
+      VpcId: !Ref VPC
+      Tags: 
+        - Key: Name
+          Value: !Sub private-subnet-${ProjectName}
+
+# ------------------------------------------------------------#
+#  Route Table
+# ------------------------------------------------------------# 
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: !Sub public-rtb-${ProjectName}
+      VpcId: !Ref VPC
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: !Sub private-rtb-${ProjectName}
+      VpcId: !Ref VPC
+
+# ------------------------------------------------------------#
+#  Attach Route Table to Subnet
+# ------------------------------------------------------------#
+  AttachRouteTableToPublicSubnet
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
+
+  AttachRouteTableToPrivateSubnet
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet
+
+# ------------------------------------------------------------#
+#  Setting Route
+# ------------------------------------------------------------# 
+  PublicSubnetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachRouteTableToPublicSubnet
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+# ------------------------------------------------------------#
+#  EC2
+# ------------------------------------------------------------# 
